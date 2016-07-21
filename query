@@ -262,6 +262,27 @@ def lookupAllele(chrom, pos, allele, reference, dataset):
 
     return "false"
 
+def lookupAlleleJsonQueryID(chrom, pos, altBases, refBases, reference, dataset,queryID):
+    " call lookupAllele and wrap the result into dictionaries "
+    chrom, pos, altBases, reference, dataset = checkParams(chrom, pos, altBases, reference, dataset)
+    exists = lookupAllele(chrom, pos, altBases, reference, dataset)
+
+    if chrom=="test" and pos==0:
+        exists = "true"
+
+    query = {
+        "alternateBases": altBases,
+        "referenceBases" : refBases,
+        "chromosome": chrom.replace("chr",""),
+        "position": pos,
+        "reference": reference,
+        "dataset": dataset
+        }
+
+    ret = {"beacon" : getBeaconDesc(), "query"+str(queryID) : query, \
+        "response" : {"exists":exists} }
+    return ret
+
 def lookupAlleleJson(chrom, pos, altBases, refBases, reference, dataset):
     " call lookupAllele and wrap the result into dictionaries "
     chrom, pos, altBases, reference, dataset = checkParams(chrom, pos, altBases, reference, dataset)
@@ -618,6 +639,13 @@ if cherryPyLoaded:
             return beaconQuery(chromosome, position, referenceBases, alternateBases, reference, dataset, format)
 
         @cherrypy.expose
+        def batchquery(self, chromosome=None, position=None, referenceBases=None, alternateBases=None, reference=None,
+                  dataset=None, format=None, allele=None):
+            if allele != None:
+                alternateBases = allele
+            return beaconQueryBatch(chromosome, position, referenceBases, alternateBases, reference, dataset, format)
+
+        @cherrypy.expose
         def info(self):
             return makeJson(beaconInfo())
 
@@ -652,7 +680,46 @@ def mainCommandLine():
         sys.exit(1)
 
     importFiles(refDb, fileNames, datasetName, options.format)
-    
+
+def beaconQueryBatch(chroms, poss, refBases, altBasess, reference, dataset, format):
+    """ query the beacon, returns a JSON or text string """
+    """ alt base are allele """
+    if chroms==None and poss==None and altBasess==None:
+        return makeHelp()
+
+    try:
+        res = None
+        chroms = chroms.split(",")
+        poss = poss.split(",")
+        altBasess = altBasess.split(",")
+        for i in range(0,len(chroms)):
+
+            ret = lookupAlleleJson(chroms[i], poss[i], altBasess[i], refBases, reference, dataset)
+
+            if format=="text":
+                if res:
+                    res+= ret["response"]["exists"]
+                else:
+                    res=ret["response"]["exists"]
+            else:
+                if res:
+                    print res
+                    res["response"]["exists"][str(i)] = (ret["response"]["exists"])
+                    res["query"][str(i)]=ret["query"]
+                    #res["query"]["alternateBases"] += "," + (ret["query"]["alternateBases"])
+                    #res["query"]["chromosome"] += "," + (ret["query"]["chromosome"])
+                    #res["query"]["position"] += "," + str(ret["query"]["position"])
+                else:
+                    res = {"beacon":getBeaconDesc(),"response": {"exists":{str(i):ret["response"]["exists"]}},
+                           "query":{str(i):ret["query"]}}
+
+
+                    #print res["response"]
+
+        return makeJson(res)
+    except BeaconError, ex:
+        return jsonErrMsg(ex.msg)
+
 def beaconQuery(chrom, pos, refBases, altBases, reference, dataset, format):
     """ query the beacon, returns a JSON or text string """
     if chrom==None and pos==None and altBases==None:
@@ -683,18 +750,28 @@ def mainCgi():
     if page=="info":
         print makeJson(beaconInfo())
         sys.exit(0)
+    if page=="batchquery":
+        chrom = form.getfirst("chromosome")
+        pos = form.getfirst("position")
+        refBases = form.getfirst("referenceBases")
+        altBases = form.getfirst("alternateBases")
+        reference = form.getfirst("reference")
+        dataset = form.getfirst("dataset")
+        format = form.getfirst("format")
 
-    hgBotDelay()
+        print beaconQuery(chrom, pos, refBases, altBases, reference, dataset, format)
+    else:
+        hgBotDelay()
 
-    chrom = form.getfirst("chromosome")
-    pos = form.getfirst("position")
-    refBases = form.getfirst("referenceBases")
-    altBases = form.getfirst("alternateBases")
-    reference = form.getfirst("reference")
-    dataset = form.getfirst("dataset")
-    format = form.getfirst("format")
+        chrom = form.getfirst("chromosome")
+        pos = form.getfirst("position")
+        refBases = form.getfirst("referenceBases")
+        altBases = form.getfirst("alternateBases")
+        reference = form.getfirst("reference")
+        dataset = form.getfirst("dataset")
+        format = form.getfirst("format")
 
-    print beaconQuery(chrom, pos, refBases, altBases, reference, dataset, format)
+        print beaconQuery(chrom, pos, refBases, altBases, reference, dataset, format)
 
 if __name__=="__main__":
     # deactivate this on the RR, but useful for debugging: prints a http header
