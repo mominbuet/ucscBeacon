@@ -29,6 +29,7 @@ Then go to your web browser and try a few URLs:
 * http://localhost:8888/info
 * http://localhost:8888/query?dataset=test&chromosome=1&position=10150&allele=A&format=text
 * http://localhost:8888/query?dataset=test&chromosome=1&position=10150&allele=A
+* http://localhost:8888/query?dataset=test&chromosome=1,2&position=10150,10151&allele=A,T&format=text
 * http://localhost:8888/query?dataset=test&chromosome=1&position=10150&allele=C
 
 Stop the beacon server by hitting Ctrl+C.

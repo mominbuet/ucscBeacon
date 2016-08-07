@@ -240,6 +240,7 @@ def checkParams(chrom, pos, allele, reference, track):
 
 def lookupAllele(chrom, pos, allele, reference, dataset):
     " check if an allele is present in a sqlite DB "
+    print reference
     conn = dbOpen(reference, mustExist=True)
     tableList = dbListTables(conn)
     if dataset!=None:
@@ -251,10 +252,10 @@ def lookupAllele(chrom, pos, allele, reference, dataset):
         cur = conn.cursor()
         if tableName in NoAltDataSets:
             # some datasets don't have alt alleles, e.g. HGMD
-            sql = "SELECT * from %s WHERE chrom=? AND pos=?" % tableName
+            sql = "SELECT * from %s WHERE chrom=? AND pos=? AND sensor = 0" % tableName
             cur.execute(sql, (chrom, pos))
         else:
-            sql = "SELECT * from %s WHERE chrom=? AND pos=? AND allele=?" % tableName
+            sql = "SELECT * from %s WHERE chrom=? AND pos=? AND allele=? AND sensor = 0" % tableName
             cur.execute(sql, (chrom, pos, allele))
         row = cur.fetchone()
         if row!=None:
@@ -351,7 +352,7 @@ def dbMakeTable(conn, tableName):
     '('
     '  chrom text,' # chromosome
     '  pos int,' # start position, 0-based
-    '  allele text' # alternate allele, can also be IATG = insertion of ATG or D15 = deletion of 15 bp
+    '  allele text, sensor int default 0' # alternate allele, can also be IATG = insertion of ATG or D15 = deletion of 15 bp
     ')')
     conn.execute(_tableDef % tableName)
     conn.commit()
